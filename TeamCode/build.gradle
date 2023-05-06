@@ -15,9 +15,10 @@ dependencies {
      * Other Modules
      */
     implementation project(':FtcRobotController')
-    implementation 'org.jetbrains:annotations:24.0.0'
     implementation('com.acmerobotics.dashboard:dashboard:0.4.9') {
         exclude group: 'org.firstinspires.ftc'
     }
     implementation 'com.github.Eeshwar-Krishnan:PhotonFTC:v2.0.4'
+    implementation 'org.openftc:easyopencv:1.6.2'
+    implementation 'org.openftc:apriltag:1.1.1'
 }
