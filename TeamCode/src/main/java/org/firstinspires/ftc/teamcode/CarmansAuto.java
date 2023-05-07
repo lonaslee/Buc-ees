@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.outoftheboxrobotics.photoncore.PhotonCore;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -27,6 +28,7 @@ public class CarmansAuto extends LinearOpMode {
 
     @Override
     public void runOpMode() {
+        PhotonCore.enable();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         drive = new Drive(hardwareMap, telemetry);
@@ -36,7 +38,6 @@ public class CarmansAuto extends LinearOpMode {
         turret.setAngle(-45);
         lift = new Lift(hardwareMap, telemetry);
         flipper = new Flipper(hardwareMap, telemetry);
-        flipper.unbrace();
         flipper.unflip();
 
         sleeveDetector = new SleeveDetector(hardwareMap, telemetry);

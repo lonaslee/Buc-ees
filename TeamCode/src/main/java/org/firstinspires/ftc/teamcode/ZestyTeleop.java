@@ -2,8 +2,10 @@ package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.outoftheboxrobotics.photoncore.PhotonCore;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
@@ -36,11 +38,16 @@ public class ZestyTeleop extends LinearOpMode {
 
     private List<BooleanSupplier> runs = new ArrayList<>();
 
+    private double savedTurretAngle = 20.0;
+    private boolean flipperHasCone = false;
+
     @Override
     public void runOpMode() {
+        PhotonCore.enable();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         drive = new Drive(hardwareMap, telemetry);
+        drive.setSpeed(0.7);
         intake = new Extendo(hardwareMap, telemetry);
         arm = new Arm(hardwareMap, telemetry);
         arm.mid();
@@ -50,7 +57,6 @@ public class ZestyTeleop extends LinearOpMode {
         flipper.unbrace();
         flipper.unflip();
 
-        var savedTurretAngle = 20.0;
 
         while (opModeInInit()) {
             lift.update();
@@ -99,6 +105,7 @@ public class ZestyTeleop extends LinearOpMode {
                             case 2:
                                 if (arm.isClawFinished()) {
                                     arm.mid();
+                                    flipperHasCone = true;
                                     return false;
                                 }
                                 break;
@@ -113,11 +120,19 @@ public class ZestyTeleop extends LinearOpMode {
             }
             intake.update();
 
+            // arm claw
+            if (tgp1.right_bumper && !pgp1.right_bumper) {
+                final var wasOpened = arm.isOpened();
+                if (!flipperHasCone || !wasOpened) arm.changeClaw();
+                if (arm.isUp() && !wasOpened) flipperHasCone = true;
+            } else if (tgp1.left_bumper && pgp1.left_bumper) { // beacon
+                arm.changeClaw();
+            }
             // arm
-            if (tgp1.right_bumper && !pgp1.right_bumper) arm.changeClaw();
             if (tgp1.y && !pgp1.y) arm.up();
             else if (tgp1.x && !pgp1.x) arm.mid();
             else if (tgp1.a && !pgp1.a) arm.down();
+            else if (tgp1.b) arm.setPosition(arm.getTargetPosition() - 0.05);
             arm.update();
 
             // turret
@@ -147,12 +162,16 @@ public class ZestyTeleop extends LinearOpMode {
 
             // flipper
             if (tgp2.left_trigger != 0 && pgp2.left_trigger == 0) {
+                flipper.brace();
                 flipper.flip();
 
                 runs.add(() -> {
                     if (flipper.isFlipperDone()) {
                         flipper.unflip();
                         flipper.unbrace();
+                        lift.down();
+                        turret.setAngle(0);
+                        flipperHasCone = false;
                         return false;
                     }
                     return true;
@@ -162,6 +181,8 @@ public class ZestyTeleop extends LinearOpMode {
 
             // drive
             if (tgp1.options && !pgp1.options) drive.resetYaw();
+            drive.setSpeed(0.7 + tgp1.right_trigger * 0.3);
+            drive.setSpeed(0.7 - tgp1.left_trigger * 0.3);
             drive.setVels(tgp1.left_stick_x, tgp1.left_stick_y, -tgp1.right_stick_x);
             drive.update();
 

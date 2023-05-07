@@ -59,7 +59,7 @@ public class Flipper {
 
     public void unbrace() {
         braced = false;
-        brace.setPosition(0.15);
+        brace.setPosition(0.2);
     }
 
     public void brace() {

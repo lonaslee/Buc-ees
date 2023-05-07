@@ -70,7 +70,7 @@ public class Drive {
     }
 
     private double yaw;
-    private double offset = 0;
+    private double offset = Math.PI;
 
     public double getYaw() {
         return yaw - offset;
@@ -83,7 +83,7 @@ public class Drive {
     private final double[] powers = new double[]{0, 0, 0, 0};
 
     public void update() {
-        yaw = AngleUnit.normalizeRadians(imu.getAngularOrientation().thirdAngle) - offset;
+        yaw = AngleUnit.normalizeRadians(imu.getAngularOrientation().thirdAngle - offset);
         voltage = vsensor.getVoltage();
 
         final double velComp = 12 / getVoltage();
