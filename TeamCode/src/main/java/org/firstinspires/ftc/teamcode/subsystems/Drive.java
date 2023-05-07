@@ -22,7 +22,8 @@ public class Drive {
     public DcMotorEx fl, bl, br, fr;
     public BNO055IMU imu;
     private final VoltageSensor vsensor;
-    @Nullable private final Telemetry tm;
+    @Nullable
+    private final Telemetry tm;
 
     public Drive(@NonNull HardwareMap hardwareMap, @Nullable Telemetry telemetry) {
         fl = (DcMotorEx) hardwareMap.get("fl");
@@ -82,23 +83,6 @@ public class Drive {
 
     private final double[] powers = new double[]{0, 0, 0, 0};
 
-    public void update() {
-        yaw = AngleUnit.normalizeRadians(imu.getAngularOrientation().thirdAngle - offset);
-        voltage = vsensor.getVoltage();
-
-        final double velComp = 12 / getVoltage();
-
-        fl.setPower(powers[0] * speed * velComp);
-        bl.setPower(powers[2] * speed * velComp);
-        br.setPower(powers[3] * speed * velComp);
-        fr.setPower(powers[1] * speed * velComp);
-
-        System.out.println("Drive[ yaw=" + getYaw() + ", voltage=" + getVoltage() + ", speed=" + getSpeed() + " ]");
-        if (tm != null) {
-            tm.addData("yaw", getYaw());
-        }
-    }
-
     public void setPowers(@NonNull double[] powers) {
         this.powers[0] = powers[0];
         this.powers[1] = powers[1];
@@ -120,5 +104,22 @@ public class Drive {
         powers[1] = (y + x + rx) / denominator;
         powers[2] = (y - x - rx) / denominator;
         powers[3] = (y + x - rx) / denominator;
+    }
+
+    public void update() {
+        yaw = AngleUnit.normalizeRadians(imu.getAngularOrientation().thirdAngle - offset);
+        voltage = vsensor.getVoltage();
+
+        final double velComp = 12 / getVoltage();
+
+        fl.setPower(powers[0] * speed * velComp);
+        bl.setPower(powers[2] * speed * velComp);
+        br.setPower(powers[3] * speed * velComp);
+        fr.setPower(powers[1] * speed * velComp);
+
+        System.out.println("Drive[ yaw=" + getYaw() + ", voltage=" + getVoltage() + ", speed=" + getSpeed() + " ]");
+        if (tm != null) {
+            tm.addData("yaw", getYaw());
+        }
     }
 }

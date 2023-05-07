@@ -111,7 +111,7 @@ public class CarmansAuto extends LinearOpMode {
                     }
                 }
                 case 5 -> { // lift cone
-                    if (arm.isClawFinished() && timer.seconds() > 0.8) {
+                    if (arm.isClawFinished()) {
                         arm.up();
                         stage++;
                         timer.reset();
@@ -138,7 +138,7 @@ public class CarmansAuto extends LinearOpMode {
                     }
                 }
                 case 9 -> { // wait for transfer, go back for another cycle
-                    if (turret.getCurrentAngle() < -16 && timer.seconds() > 0.7) {
+                    if (turret.getCurrentAngle() < -16) {
                         conesLeft--;
                         stage = 1;
                     }
@@ -146,8 +146,8 @@ public class CarmansAuto extends LinearOpMode {
                 case 10 -> { // park
                     if (lift.isDown()) {
                         switch (verdict) {
-                            case 1 -> drive.setVels(0.9, 0, 0);
-                            case 3 -> drive.setVels(-0.9, 0, 0);
+                            case 1 -> drive.setVels(0, 0.9, 0);
+                            case 3 -> drive.setVels(0, -0.9, 0);
                             default -> drive.setVels(0, 0, 0);
                         }
                         stage++;
