@@ -1,62 +1,68 @@
 package org.firstinspires.ftc.teamcode.movendo;
 
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.Supplier;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-
-import java.util.Objects;
-import java.util.Arrays;
-import java.util.function.DoubleSupplier;
-
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 @Config
 public class Movendo {
-    public Supplier<double[]> velsSupplier;
-    public DoubleSupplier angleSupplier;
-
     @Nullable
     private final Telemetry tm;
 
-    /**
-     * Constructor.
-     *
-     * @param velsSupplier  Supplier giving double[fl, bl, br, fr] of motor velocities.
-     * @param angleSupplier DoubleSupplier of imu angle, in radians.
-     */
-    public Movendo(
-            Supplier<double[]> velsSupplier,
-            DoubleSupplier angleSupplier,
-            @Nullable Telemetry telemetry
-    ) {
-        this.velsSupplier = velsSupplier;
-        this.angleSupplier = angleSupplier;
+    private final DcMotorEx fl;
+    private final DcMotorEx bl;
+    private final DcMotorEx br;
+    private final DcMotorEx fr;
+    private final BNO055IMU imu;
+    private final VoltageSensor voltageSensor;
+
+    public static double TRACK_WIDTH = 17;
+    public static double TICKS_TO_RADIANS = (2 * Math.PI) / 537.7;
+    public static double WHEEL_RADIUS = 1.8898;
+
+    public static double mV = 50;
+    public static double mA = 30;
+    public static double maV = 3;
+    public static double maA = 1.5;
+
+
+    public Movendo(@NonNull HardwareMap hardwareMap, @Nullable Telemetry telemetry) {
+        fl = (DcMotorEx) hardwareMap.get("fl");
+        bl = (DcMotorEx) hardwareMap.get("bl");
+        br = (DcMotorEx) hardwareMap.get("br");
+        fr = (DcMotorEx) hardwareMap.get("fr");
+        imu = (BNO055IMU) hardwareMap.get("imu");
+        imu.initialize(new BNO055IMU.Parameters());
+        voltageSensor = hardwareMap.voltageSensor.iterator().next();
+
         tm = telemetry;
     }
 
-    /**
-     * Constructor without telemetry.
-     */
-    public Movendo(Supplier<double[]> velsSupplier, DoubleSupplier angleSupplier) {
-        this(velsSupplier, angleSupplier, null);
+    public Movendo(@NonNull HardwareMap hardwareMap) {
+        this(hardwareMap, null);
     }
 
-    @NonNull
-    private TrapezoidalProfile xProfile = new TrapezoidalProfile(0, 0, mV, mA);
-    @NonNull
-    private TrapezoidalProfile yProfile = new TrapezoidalProfile(0, 0, mV, mA);
-    @NonNull
-    private TrapezoidalProfile hProfile = new TrapezoidalProfile(0, 0, maV, maA);
+    public double getYaw() {
+        return imu.getAngularOrientation().thirdAngle;
+    }
 
-    private final PIDController xpid = new PIDController(0.1, 0, 0);
-    private final PIDController ypid = new PIDController(0.1, 0, 0);
-    private final PIDController hpid = new PIDController(0.1, 0, 0);
+    public double getVoltage() {
+        return voltageSensor.getVoltage();
+    }
 
-    private final ElapsedTime profileTimer = new ElapsedTime();
+    /* * * * * * * * *\
+     * Localization  *
+    \* * * * * * * * */
 
     @NonNull
     private Pose currentPose = new Pose(0, 0, 0);
@@ -66,9 +72,40 @@ public class Movendo {
         return currentPose;
     }
 
-    public void setCurrentPose(@NonNull Pose pose) {
-        this.currentPose = pose;
+    public void setCurrentPose(@NonNull Pose currentPose) {
+        this.currentPose = currentPose;
     }
+
+    @NonNull
+    private WheelValues p_prev = new WheelValues(0, 0, 0, 0);
+
+    private void updateCurrentPose() {
+        final var p_cur = new WheelValues(
+                fl.getCurrentPosition(),
+                bl.getCurrentPosition(),
+                br.getCurrentPosition(),
+                fr.getCurrentPosition()
+        );
+
+        final var v_cur = new WheelValues(
+                (p_cur.fl - p_prev.fl) * TICKS_TO_RADIANS * WHEEL_RADIUS,
+                (p_cur.bl - p_prev.bl) * TICKS_TO_RADIANS * WHEEL_RADIUS,
+                (p_cur.br - p_prev.br) * TICKS_TO_RADIANS * WHEEL_RADIUS,
+                (p_cur.fr - p_prev.fr) * TICKS_TO_RADIANS * WHEEL_RADIUS
+        );
+
+        final var v_f = (v_cur.fr + v_cur.fl + v_cur.br + v_cur.bl) / 4;
+        final var v_s = (v_cur.bl + v_cur.fr - v_cur.fl - v_cur.bl) / 4;
+        final var v_w = (v_cur.br + v_cur.fr - v_cur.fl - v_cur.bl) / (4 * TRACK_WIDTH);
+
+        currentPose = currentPose.delta(v_s, v_f, v_w);
+
+        p_prev = p_cur;
+    }
+
+    /* * * * * * *\
+     * Movement  *
+    \* * * * * * */
 
     @NonNull
     private Pose targetPose = new Pose(0, 0, 0);
@@ -78,125 +115,75 @@ public class Movendo {
         return targetPose;
     }
 
-    public void setTargetPose(Pose target) {
-        if (currentPose.equals(target)) return;
+    public void setTargetPose(@NonNull Pose targetPose) {
+        if (currentPose.equals(targetPose)) return;
+        this.targetPose = targetPose;
 
-        xProfile = new TrapezoidalProfile(currentPose.x, target.x, mV, mA);
-        yProfile = new TrapezoidalProfile(currentPose.y, target.y, mV, mA);
-        hProfile = new TrapezoidalProfile(currentPose.h, target.h, maV, maA);
+        xProfile = new TrapezoidalProfile(currentPose.x, targetPose.x, mV, mA);
+        yProfile = new TrapezoidalProfile(currentPose.y, targetPose.y, mV, mA);
+        hProfile = new TrapezoidalProfile(currentPose.h, targetPose.h, mV, mA);
         profileTimer.reset();
-
-        this.targetPose = target;
     }
 
-    public static double LATERAL_MULTIPLIER = 1;
-    public static double TRACK_WIDTH = 17;
-    public static double TICKS_TO_RADIANS = (2 * Math.PI) / 537.7;
-    public static double WHEEL_RADIUS = 1.8898;
+    @NonNull
+    private TrapezoidalProfile xProfile = new TrapezoidalProfile(0, 0, mV, mA);
+    @NonNull
+    private TrapezoidalProfile yProfile = new TrapezoidalProfile(0, 0, mV, mA);
+    @NonNull
+    private TrapezoidalProfile hProfile = new TrapezoidalProfile(0, 0, maV, maA);
+
+    private final ElapsedTime profileTimer = new ElapsedTime(ElapsedTime.Resolution.SECONDS);
+
+    private final PIDController xpid = new PIDController(0.1);
+    private final PIDController ypid = new PIDController(0.1);
+    private final PIDController hpid = new PIDController(0.1);
+
+    @NonNull
+    private Pose getDriveVelocities() {
+        xpid.set(xProfile.at(profileTimer.time())[2]);
+        ypid.set(yProfile.at(profileTimer.time())[2]);
+
+        return new Pose(
+                xpid.get(currentPose.x),
+                ypid.get(currentPose.y),
+                hpid.get(AngleUnit.normalizeRadians(hProfile.at(profileTimer.time())[2] - currentPose.h))
+        );
+    }
+
+    public void setDriveVelocities(double x, double y, double h) {
+        x = x * Math.cos(-getYaw()) - y * Math.sin(-getYaw());
+        y = x * Math.sin(-getYaw()) + y * Math.cos(-getYaw());
+
+        final var denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(h), 1);
+        fl.setPower((y + x + h) / denominator);
+        bl.setPower((y - x + h) / denominator);
+        br.setPower((y + x - h) / denominator);
+        fr.setPower((y - x - h) / denominator);
+    }
 
     public void update() {
         updateCurrentPose();
+        final var vels = getDriveVelocities();
+        setDriveVelocities(vels.x, vels.y, vels.h);
 
-        System.out.println("Pose[ ");
         if (tm != null) {
-            tm.addData("currentPose", currentPose.toString());
-            tm.addData("targetPose", targetPose.toString());
+            tm.addData("curPose", getCurrentPose());
+            tm.addData("targetPose", getTargetPose());
+            tm.addData("vels", vels.toString());
         }
     }
 
-    private void updateCurrentPose() {
-        final var wheelVels = velsSupplier.get();
-        final var fl = wheelVels[0] * TICKS_TO_RADIANS * WHEEL_RADIUS;
-        final var bl = wheelVels[1] * TICKS_TO_RADIANS * WHEEL_RADIUS;
-        final var br = wheelVels[2] * TICKS_TO_RADIANS * WHEEL_RADIUS;
-        final var fr = wheelVels[3] * TICKS_TO_RADIANS * WHEEL_RADIUS;
+    public static class WheelValues {
+        public final double fl;
+        public final double bl;
+        public final double br;
+        public final double fr;
 
-        final var vf = (fr + fl + br + bl) / 4;
-        final var vs = (bl + fr - fl - br) / 4;
-        final var w = (br + fr - fl - bl) / (4 * TRACK_WIDTH);
-
-        currentPose = new Pose(currentPose.x + vf, currentPose.y + vs, currentPose.h + w);
-    }
-
-    /**
-     * Get profiled pid values of double[x, y, h].
-     */
-    public double[] getTargetVelocities() {
-        final double xerror = xProfile.at(profileTimer.time())[2] - currentPose.x;
-        final double yerror = yProfile.at(profileTimer.time())[2] - currentPose.y;
-        final double herror = hProfile.at(profileTimer.time())[2] - currentPose.h;
-
-        final double x = xpid.get(xerror);
-        final double y = ypid.get(yerror);
-        final double h = hpid.get(herror);
-
-        System.out.println("error [x, y, h] : " + Arrays.toString(new double[]{xerror, yerror, herror}));
-        System.out.println("prof pid [x, y, h]  : " + Arrays.toString(new double[]{x, y, h}));
-
-        return new double[]{x, y, h};
-    }
-
-    /**
-     * Get field centric double[fl, bl, br, fr] motor powers.
-     */
-    @NonNull
-    public double[] toWheelVelocities(double x, double y, double h) {
-        x = x * Math.cos(-currentPose.h) - y * Math.sin(-currentPose.h);
-        y = x * Math.sin(-currentPose.h) + y * Math.cos(-currentPose.h);
-
-        final double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(h), 1);
-        final double fl = (y + x + h) / denominator;
-        final double bl = (y - x + h) / denominator;
-        final double br = (y + x - h) / denominator;
-        final double fr = (y - x - h) / denominator;
-
-        return new double[]{fl, bl, br, fr};
-    }
-
-    @NonNull
-    public double[] toWheelVelocities(@NonNull double[] velocities) {
-        return toWheelVelocities(velocities[0], velocities[1], velocities[2]);
-    }
-
-    public static final double mV = 10;
-    public static final double mA = 10;
-    public static final double maV = 10;
-    public static final double maA = 10;
-
-    public static final class Pose {
-        public final double x;
-        public final double y;
-        public final double h;
-
-        public Pose(double x, double y, double h) {
-            this.x = x;
-            this.y = y;
-            this.h = h;
+        public WheelValues(double fl, double bl, double br, double fr) {
+            this.fl = fl;
+            this.bl = bl;
+            this.br = br;
+            this.fr = fr;
         }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof Pose && ((Pose) obj).hashCode() == hashCode();
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(x, y, h);
-        }
-
-        @NonNull
-        @Override
-        public String toString() {
-            return "Pose[ (" + roundDecimal(x) + ", " + roundDecimal(y) + "), " + roundDecimal(h) + " ]";
-        }
-    }
-
-    public static double roundDecimal(double decimal, int places) {
-        final var power = Math.pow(10, places);
-        return Math.round(decimal * power) / power;
-    }
-
-    public static double roundDecimal(double decimal) {
-        return roundDecimal(decimal, 2);
     }
 }

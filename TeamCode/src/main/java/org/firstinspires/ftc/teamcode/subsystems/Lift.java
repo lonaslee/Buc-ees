@@ -79,6 +79,10 @@ public class Lift {
         return getCurrentPosition() < 5;
     }
 
+    public boolean isBusy() {
+        return motor.isBusy();
+    }
+
     public void update() {
         System.out.println("Lift[ target=" + getTargetPosition() + ", current=" + getCurrentPosition() + " ]");
         if (tm != null) {

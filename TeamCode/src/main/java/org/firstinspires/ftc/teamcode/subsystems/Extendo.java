@@ -13,7 +13,8 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 
 public class Extendo {
     private final DcMotorEx motor;
-    @Nullable private final Telemetry tm;
+    @Nullable
+    private final Telemetry tm;
 
     public Extendo(
             @NonNull HardwareMap hardwareMap, @Nullable Telemetry telemetry, boolean resetEncoder
@@ -89,6 +90,10 @@ public class Extendo {
 
     public boolean isRetracted() {
         return getCurrentPosition() < 5;
+    }
+
+    public boolean isBusy() {
+        return motor.isBusy();
     }
 
     public static final int EXTENDED = 3300;

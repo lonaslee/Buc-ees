@@ -25,18 +25,20 @@ public class PIDController {
     private double lastError = 0;
 
     public void set(double setpoint) {
+        if (this.setpoint != setpoint) {
+            integralSum = 0;
+            lastError = 0;
+            timer.reset();
+        }
         this.setpoint = setpoint;
-
-        integralSum = 0;
-        lastError = 0;
-        timer.reset();
     }
 
     public double get(double output) {
         final double error = setpoint - output;
         integralSum += error * timer.milliseconds();
 
-        final double pid = (error * kP) + (integralSum * kI) + ((error - lastError) / timer.milliseconds() * kD);
+        final double pid =
+                (error * kP) + (integralSum * kI) + ((error - lastError) / timer.milliseconds() * kD);
 
         lastError = error;
         timer.reset();
