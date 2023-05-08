@@ -21,4 +21,5 @@ dependencies {
     implementation 'com.github.Eeshwar-Krishnan:PhotonFTC:v2.0.4'
     implementation 'org.openftc:easyopencv:1.6.2'
     implementation 'org.openftc:apriltag:1.1.1'
+    implementation 'com.github.lonaslee:FormattedTelemetry:1.0.0'
 }

@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.lonaslee.formattedtelemetry.FormattedLineBuilder;
 import com.outoftheboxrobotics.photoncore.PhotonCore;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -187,7 +188,26 @@ public class ZestyTeleop extends LinearOpMode {
             drive.update();
 
             updateRuns();
-            telemetry.addLine(tgp1.toString());
+            telemetry.addLine(new FormattedLineBuilder().white()
+                    .add("Turret ")
+                    .startSlider(0, 180, turret.getCurrentAngle() - 90)
+                    .blue()
+                    .cyan()
+                    .purple()
+                    .nl()
+                    .add("Lift ")
+                    .startSlider(0, Lift.UP, lift.getCurrentPosition())
+                    .green()
+                    .lime()
+                    .yellow()
+                    .nl()
+                    .add("Extendo ")
+                    .startSlider(0, Extendo.EXTENDED, intake.getCurrentPosition())
+                    .red()
+                    .magenta()
+                    .pink()
+                    .nl()
+                    .toString());
             telemetry.update();
         }
     }
