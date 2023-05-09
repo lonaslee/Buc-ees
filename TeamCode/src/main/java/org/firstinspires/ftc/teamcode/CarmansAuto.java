@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
-import com.outoftheboxrobotics.photoncore.PhotonCore;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -28,7 +27,6 @@ public class CarmansAuto extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        PhotonCore.enable();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         drive = new Drive(hardwareMap, telemetry);
@@ -40,9 +38,9 @@ public class CarmansAuto extends LinearOpMode {
         flipper = new Flipper(hardwareMap, telemetry);
         flipper.unflip();
 
-        sleeveDetector = new SleeveDetector(hardwareMap, telemetry);
+//        sleeveDetector = new SleeveDetector(hardwareMap, telemetry);
 
-        final var armPoses = new double[]{0.1, 0.1 - 0.02, 0.1 - 0.04, 0.1 - 0.05, 0.1 - 0.06};
+        final var armPoses = new double[]{0.15, 0.14, 0.13, 0.1, 0.07};
 
         while (opModeInInit()) {
             drive.setVels(0, 0, 0);
@@ -57,20 +55,25 @@ public class CarmansAuto extends LinearOpMode {
 
         waitForStart();
 
-        final var verdict = sleeveDetector.getVerdict();
+//        final var verdict = sleeveDetector.getVerdict();
+        final var verdict = 2;
 
-        int stage = 0;
+        int stage = -1;
         int conesLeft = 5;
         ElapsedTime timer = new ElapsedTime();
 
         while (opModeIsActive()) {
             switch (stage) {
-                case 0 -> { // go to cycle spot
-                    turret.setAngle(-20);
-                    drive.setVels(0.9, 0, 0.0);
+                case -1 -> { // go to cycle spot
+                    turret.setAngle(-23);
+                    drive.setVels(-0.9, 0, 0.0);
                     if (timer.time() > t1) {
                         stage++;
                         drive.setVels(0, 0, 0);
+                    }
+                } case 0 -> {
+                    if (turret.getCurrentAngle() < -15) {
+                        stage++;
                     }
                 }
                 case 1 -> { // lift to safe pole
@@ -80,7 +83,7 @@ public class CarmansAuto extends LinearOpMode {
                     if (conesLeft > 0) {
                         arm.setPosition(armPoses[5 - conesLeft]);
                         arm.open();
-                        intake.setPosition(1200);
+                        intake.setPosition(conesLeft == 1 ? 1200 : 1150);
                     }
                     stage++;
                 }
@@ -111,7 +114,7 @@ public class CarmansAuto extends LinearOpMode {
                     }
                 }
                 case 5 -> { // lift cone
-                    if (arm.isClawFinished()) {
+                    if (arm.isClawFinished() && timer.seconds() > 0.6) {
                         arm.up();
                         stage++;
                         timer.reset();
@@ -132,13 +135,14 @@ public class CarmansAuto extends LinearOpMode {
                     }
                 }
                 case 8 -> { // lower arm
-                    if (arm.isClawFinished()) {
-                        if (conesLeft != 0) arm.down();
+                    if (timer.seconds() > 0.4) {
+                        if (conesLeft > 1) arm.down();
+                        else arm.mid();
                         stage++;
                     }
                 }
                 case 9 -> { // wait for transfer, go back for another cycle
-                    if (turret.getCurrentAngle() < -16) {
+                    if (turret.getCurrentAngle() < -10) {
                         conesLeft--;
                         stage = 1;
                     }
@@ -155,8 +159,10 @@ public class CarmansAuto extends LinearOpMode {
                     }
                 }
                 case 11 -> { // in zone
-                    if (timer.seconds() > t2) drive.setVels(0, 0, 0);
-                    stage++;
+                    if (timer.seconds() > t2) {
+                        drive.setVels(0, 0, 0);
+                        stage++;
+                    }
                 }
                 default -> {
                 }

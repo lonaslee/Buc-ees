@@ -84,7 +84,6 @@ public class Lift {
     }
 
     public void update() {
-        System.out.println("Lift[ target=" + getTargetPosition() + ", current=" + getCurrentPosition() + " ]");
         if (tm != null) {
             tm.addData("liftPosition", getCurrentPosition());
         }

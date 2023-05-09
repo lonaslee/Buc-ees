@@ -16,11 +16,10 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 @Config
 public class Turret {
     private final DcMotorEx motor;
-    @Nullable private final Telemetry tm;
+    @Nullable
+    private final Telemetry tm;
 
-    public Turret(
-            @NonNull HardwareMap hardwareMap, @Nullable Telemetry telemetry, boolean resetEncoder
-    ) {
+    public Turret(@NonNull HardwareMap hardwareMap, @Nullable Telemetry telemetry, boolean resetEncoder) {
         motor = (DcMotorEx) hardwareMap.get("turret");
         if (resetEncoder) resetEncoder();
         motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -56,7 +55,7 @@ public class Turret {
         degrees = Math.max(-90, degrees);
         degrees = Math.min(90, degrees);
 
-        profile = new TrapezoidalProfile(getTargetAngle(), degrees * DEGREES_TO_TICKS, mV, mA);
+        profile = new TrapezoidalProfile(getTargetAngle() * DEGREES_TO_TICKS, degrees * DEGREES_TO_TICKS, mV, mA);
         profileTimer.reset();
 
         targetDegrees = degrees;
@@ -80,20 +79,19 @@ public class Turret {
 
     public void update() {
         curTicks = motor.getCurrentPosition();
-        double error = profile.at(profileTimer.seconds())[2] - curTicks;
+        double profileticks = profile.at(profileTimer.seconds())[2];
+        double error = profileticks - curTicks;
 
         integralSum += error * pidTimer.milliseconds();
-        double value =
-                kP * error + kI * integralSum + kD * (error - lastError) / pidTimer.milliseconds();
+        double value = kP * error + kI * integralSum + kD * (error - lastError) / pidTimer.milliseconds();
 
         lastError = error;
         pidTimer.reset();
 
         motor.setPower(value);
 
-        System.out.println("Turret[ target=" + getTargetAngle() + ", current=" + getCurrentAngle() + ", pid=" + value + " ]");
         if (tm != null) {
-            tm.addData("turretAngle", getTargetAngle());
+            tm.addData("turretTargetAngle", profileticks * TICKS_TO_DEGREES);
             tm.addData("turretPower", value);
             tm.addData("turretCurAngle", getCurrentAngle());
         }
@@ -111,11 +109,11 @@ public class Turret {
         return isApproxAt(getTargetAngle());
     }
 
-    public static double kP = 0.06;
+    public static double kP = 0.05;
     public static double kI = 0.0;
     public static double kD = 0;
 
-    public static double mV = 2200;
+    public static double mV = 2000;
     public static double mA = 400;
 
     private static final double TICKS_TO_DEGREES = 360 / 537.7;

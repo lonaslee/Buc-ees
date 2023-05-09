@@ -2,16 +2,15 @@ package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
-import com.lonaslee.formattedtelemetry.FormattedLineBuilder;
 import com.outoftheboxrobotics.photoncore.PhotonCore;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.Arm;
 import org.firstinspires.ftc.teamcode.subsystems.Drive;
@@ -68,7 +67,15 @@ public class ZestyTeleop extends LinearOpMode {
             updateRuns();
         }
 
+        long loops = 0;
+        ElapsedTime timer = new ElapsedTime();
         while (opModeIsActive()) {
+            loops++;
+            if (loops > Long.MAX_VALUE / 2) {
+                loops = 0;
+                timer.reset();
+            }
+
             try {
                 pgp1.copy(tgp1);
                 tgp1.copy(gamepad1);
@@ -133,7 +140,7 @@ public class ZestyTeleop extends LinearOpMode {
             if (tgp1.y && !pgp1.y) arm.up();
             else if (tgp1.x && !pgp1.x) arm.mid();
             else if (tgp1.a && !pgp1.a) arm.down();
-            else if (tgp1.b) arm.setPosition(arm.getTargetPosition() - 0.05);
+            else if (tgp1.b && !pgp1.b) arm.setPosition(arm.getTargetPosition() - 0.05);
             arm.update();
 
             // turret
@@ -184,30 +191,11 @@ public class ZestyTeleop extends LinearOpMode {
             if (tgp1.options && !pgp1.options) drive.resetYaw();
             drive.setSpeed(0.7 + tgp1.right_trigger * 0.3);
             drive.setSpeed(0.7 - tgp1.left_trigger * 0.3);
-            drive.setVels(tgp1.left_stick_x, tgp1.left_stick_y, -tgp1.right_stick_x);
+            drive.setVels(tgp1.left_stick_x * 1.1, -tgp1.left_stick_y, tgp1.right_stick_x);
             drive.update();
 
             updateRuns();
-            telemetry.addLine(new FormattedLineBuilder().white()
-                    .add("Turret ")
-                    .startSlider(0, 180, turret.getCurrentAngle() - 90)
-                    .blue()
-                    .cyan()
-                    .purple()
-                    .nl()
-                    .add("Lift ")
-                    .startSlider(0, Lift.UP, lift.getCurrentPosition())
-                    .green()
-                    .lime()
-                    .yellow()
-                    .nl()
-                    .add("Extendo ")
-                    .startSlider(0, Extendo.EXTENDED, intake.getCurrentPosition())
-                    .red()
-                    .magenta()
-                    .pink()
-                    .nl()
-                    .toString());
+            telemetry.addData("hz", loops / timer.seconds());
             telemetry.update();
         }
     }

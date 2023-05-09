@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.Arm;
 import org.firstinspires.ftc.teamcode.subsystems.Drive;
@@ -37,7 +38,6 @@ public class ZeroSystems extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        PhotonCore.enable();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         drive = new Drive(hardwareMap, telemetry);
@@ -59,7 +59,16 @@ public class ZeroSystems extends LinearOpMode {
             telemetry.update();
         }
 
+        long loops = 0;
+        ElapsedTime timer = new ElapsedTime();
+
         while (opModeIsActive()) {
+            loops++;
+            if (loops >= Long.MAX_VALUE) {
+                loops = 0;
+                timer.reset();
+            }
+
             try {
                 pgp1.copy(tgp1);
                 tgp1.copy(gamepad1);
@@ -88,7 +97,7 @@ public class ZeroSystems extends LinearOpMode {
             }
 
             if (Math.abs(tgp2.left_stick_y) > 0.1)
-                lift.setUnboundedPosition(lift.getTargetPosition() - (int) (200 * tgp2.left_stick_y));
+                lift.setUnboundedPosition(lift.getTargetPosition() - (int) (100 * tgp2.left_stick_y));
             if (tgp2.a && !pgp2.a) {
                 lift.resetEncoder();
                 lift.down();
@@ -108,6 +117,7 @@ public class ZeroSystems extends LinearOpMode {
             turret.update();
             lift.update();
             flipper.update();
+            telemetry.addData("hz", loops / timer.seconds());
             telemetry.update();
         }
     }

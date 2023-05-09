@@ -82,7 +82,6 @@ public class Extendo {
     }
 
     public void update() {
-        System.out.println("Extendo[ target=" + getTargetPosition() + ", current=" + getCurrentPosition() + " ]");
         if (tm != null) {
             tm.addData("extendoPosition", getCurrentPosition());
         }

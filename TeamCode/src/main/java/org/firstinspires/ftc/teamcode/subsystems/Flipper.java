@@ -77,7 +77,6 @@ public class Flipper {
     }
 
     public void update() {
-        System.out.println("Flipper [ flipped=" + isFlipped() + ", braced=" + isBraced() + " ]");
         if (tm != null) {
             tm.addData("flipped & braced", isFlipped() + " & " + isBraced());
         }

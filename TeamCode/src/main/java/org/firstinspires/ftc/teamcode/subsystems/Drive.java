@@ -71,7 +71,7 @@ public class Drive {
     }
 
     private double yaw;
-    private double offset = Math.PI;
+    private double offset = 0;
 
     public double getYaw() {
         return yaw - offset;
@@ -96,30 +96,26 @@ public class Drive {
     }
 
     public void setVels(double x, double y, double rx) {
-        x = x * cos(getYaw()) - y * sin(getYaw());
-        y = x * sin(getYaw()) + y * cos(getYaw());
-
         double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
-        powers[0] = (y - x + rx) / denominator;
-        powers[1] = (y + x + rx) / denominator;
-        powers[2] = (y - x - rx) / denominator;
-        powers[3] = (y + x - rx) / denominator;
+        powers[0] = (y + x + rx) / denominator;
+        powers[1] = (y - x + rx) / denominator;
+        powers[2] = (y + x - rx) / denominator;
+        powers[3] = (y - x - rx) / denominator;
     }
 
     public void update() {
-        yaw = AngleUnit.normalizeRadians(imu.getAngularOrientation().thirdAngle - offset);
+        yaw = AngleUnit.normalizeRadians(imu.getAngularOrientation().firstAngle - offset);
         voltage = vsensor.getVoltage();
 
         final double velComp = 12 / getVoltage();
 
         fl.setPower(powers[0] * speed * velComp);
-        bl.setPower(powers[2] * speed * velComp);
-        br.setPower(powers[3] * speed * velComp);
-        fr.setPower(powers[1] * speed * velComp);
+        bl.setPower(powers[1] * speed * velComp);
+        br.setPower(powers[2] * speed * velComp);
+        fr.setPower(powers[3] * speed * velComp);
 
-        System.out.println("Drive[ yaw=" + getYaw() + ", voltage=" + getVoltage() + ", speed=" + getSpeed() + " ]");
         if (tm != null) {
-            tm.addData("yaw", getYaw());
+            tm.addData("yaw", Math.toDegrees(getYaw()));
         }
     }
 }

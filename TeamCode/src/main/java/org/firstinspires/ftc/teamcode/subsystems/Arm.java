@@ -62,7 +62,7 @@ public class Arm {
 
     public void down() {
         up = false;
-        servos.setTarget(0.08);
+        servos.setTarget(0.07);
     }
 
     public boolean isArmFinished() {
@@ -81,7 +81,6 @@ public class Arm {
     public void update() {
         servos.update();
 
-        System.out.println("Arm[ target=" + getTargetPosition() + ", current=" + getCurrentPosition() + ", opened=" + isOpened() + " ]");
         if (tm != null) {
             tm.addData("armCurrentPos", getCurrentPosition());
         }
